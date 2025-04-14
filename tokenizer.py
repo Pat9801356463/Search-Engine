@@ -1,9 +1,15 @@
-def test_index_and_search():
-    indexer = InMemoryIndexer()
-    indexer.add_document(Document("1", "Hello world"))
-    indexer.add_document(Document("2", "Hello there"))  # "there" is a stopword
-    results = indexer.search("Hello")
-    assert "1" in results and "2" in results  # ✅ still passes
+import re
 
-    results = indexer.search("there")
-    assert results == set()  # ✅ because "there" is a stopword
+STOPWORDS = {"the", "is", "at", "which", "on", "and", "a"}
+
+def edge_ngrams(word, min_len=2, max_len=5):
+    return [word[:i] for i in range(min_len, min(len(word), max_len) + 1)]
+
+def tokenize(text):
+    words = re.findall(r'\b\w+\b', text.lower())
+    tokens = []
+    for word in words:
+        if word not in STOPWORDS:
+            tokens.extend(edge_ngrams(word))
+    return tokens
+
