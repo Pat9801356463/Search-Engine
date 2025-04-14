@@ -1,25 +1,42 @@
-from collections import defaultdict
-
-STOPWORDS = {
-    "the", "is", "and", "or", "a", "an", "of", "in", "on", "to", "for", "with", "by", "there"
-}
+import math, json, hashlib
+from tokenizer import tokenize
 
 class InMemoryIndexer:
     def __init__(self):
-        self.index = defaultdict(set)
-        self.documents = {}
+        self.inverted_index = {}
+        self.doc_lengths = {}
+        self.total_docs = 0
 
-    def add_document(self, document):
-        self.documents[document.doc_id] = document
-        for token in document.content.lower().split():
-            if token not in STOPWORDS:
-                self.index[token].add(document.doc_id)
+    def _hash_key(self, token):
+        return hashlib.sha256(token.encode()).hexdigest()[:8]
+
+    def add_document(self, doc):
+        self.total_docs += 1
+        tokens = tokenize(doc.content)
+        self.doc_lengths[doc.doc_id] = len(tokens)
+
+        for pos, token in enumerate(tokens):
+            key = self._hash_key(token)
+            if key not in self.inverted_index:
+                self.inverted_index[key] = {}
+            if doc.doc_id not in self.inverted_index[key]:
+                self.inverted_index[key][doc.doc_id] = []
+            self.inverted_index[key][doc.doc_id].append(pos)
 
     def search(self, query):
-        terms = [t for t in query.lower().split() if t not in STOPWORDS]
-        if not terms:
-            return set()
-        results = self.index.get(terms[0], set()).copy()
-        for term in terms[1:]:
-            results &= self.index.get(term, set())
-        return results
+        tokens = tokenize(query)
+        doc_scores = {}
+        for token in tokens:
+            key = self._hash_key(token)
+            postings = self.inverted_index.get(key, {})
+            df = len(postings)
+            idf = math.log((self.total_docs + 1) / (df + 1)) + 1
+
+            for doc_id, positions in postings.items():
+                tf = len(positions)
+                tf_weight = tf / self.doc_lengths[doc_id]
+                score = idf * tf_weight
+                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + score
+
+        return dict(sorted(doc_scores.items(), key=lambda item: item[1], reverse=True))
+
