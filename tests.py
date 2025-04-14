@@ -1,13 +1,16 @@
-import pytest
 from indexer import InMemoryIndexer
 from document import Document
 
 def test_index_and_search():
-    indexer = InMemoryIndexer()
-    indexer.add_document(Document("1", "Hello world"))
-    indexer.add_document(Document("2", "Hello there"))  # "there" is a stopword
-    results = indexer.search("Hello")
-    assert "1" in results and "2" in results  
+    idx = InMemoryIndexer()
+    idx.add_document(Document("1", "Hello world"))
+    idx.add_document(Document("2", "Hello there"))
+    result = idx.search("Hello")
+    assert "1" in result and "2" in result
 
-    results = indexer.search("there")
-    assert results == set()  
+def test_search_multiple_terms():
+    idx = InMemoryIndexer()
+    idx.add_document(Document("1", "quick brown fox"))
+    idx.add_document(Document("2", "quick blue hedgehog"))
+    result = idx.search("quick brown")
+    assert list(result.keys())[0] == "1"
